@@ -15,7 +15,17 @@ class PolynomialActivation(nn.Module):
         super().__init__()
         
     def forward(self, x):
-        return x ** 3
+        return torch.pow(x, 3)
+    
+class ScaleLinear(nn.Module):
+    """Linear layer with integer weights and biases"""
+    def __init__(self, scale=1.0):
+        super().__init__()
+
+        self.scale = scale
+        
+    def forward(self, x):
+        return torch.mul(x, self.scale)
 
 class QuantizedLinear(nn.Module):
     """Linear layer with integer weights and biases"""
@@ -28,7 +38,7 @@ class QuantizedLinear(nn.Module):
         
     def forward(self, x):
         if self.quantized:
-            return torch.matmul(torch.round(x * self.scale), self.weight_int.t().float()) + self.bias_int.float()
+            return torch.matmul(torch.round(x), self.weight_int.t().float()) + self.bias_int.float()
         else:
             return torch.matmul(x, self.weight_float.t()) + self.bias_float
     
@@ -45,11 +55,13 @@ class BalancingMLP(nn.Module):
     def __init__(self):
         super().__init__()
 
+        self.scale = ScaleLinear(scale=10.0)
         self.fc1 = QuantizedLinear(4, 4, scale=10.0)
         self.activation = PolynomialActivation()
         self.fc2 = QuantizedLinear(4, 2, scale=10.0)
         
     def forward(self, x):
+        x = self.scale(x)
         x = self.activation(self.fc1(x))
         x = self.fc2(x)
 
@@ -120,7 +132,7 @@ def train_balancing_model(model):
     acc = 100. * correct / total
     print(f'Test Accuracy (with integer weights): {acc:.2f}%')
 
-    print(model(torch.FloatTensor([0, 0, 0, 2])))
+    print(model(torch.FloatTensor([0, 0, 2, 0])))
 
     return model
 

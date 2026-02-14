@@ -18,7 +18,7 @@ for i in range(4):
             operation = "-"
             weight = -weight
 
-        line += " " + operation + " " + input_names[j] + " * " + str(weight)
+        line += " " + operation + " " + input_names[j] + " * " + str(weight) + " * 10 "
 
     bias_operation = "+"
 
