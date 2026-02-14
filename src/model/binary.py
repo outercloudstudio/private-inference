@@ -35,16 +35,17 @@ class BinaryMLP(nn.Module):
         
         # self.fc4 = nn.Linear(512, 10)
 
-        self.fc1 = BinaryLinear(196, 128)
+        self.fc1 = BinaryLinear(49, 64)
         self.act1 = Activation('relu')
         
-        self.fc2 = BinaryLinear(128, 128)
+        self.fc2 = BinaryLinear(64, 64)
         self.act2 = Activation('relu')
         
-        self.fc3 = BinaryLinear(128, 128)
-        self.act3 = Activation('relu')
+        # self.fc3 = BinaryLinear(64, 64)
+        # self.act3 = Activation('relu')
         
-        self.fc4 = nn.Linear(128, 10)
+        # self.fc4 = nn.Linear(64, 10)
+        self.fc3 = nn.Linear(64, 10)
     
     def forward(self, x):
         x = self.flatten(x)
@@ -56,9 +57,9 @@ class BinaryMLP(nn.Module):
         x = self.act2(x)
         
         x = self.fc3(x)
-        x = self.act3(x)
+        # x = self.act3(x)
         
-        x = self.fc4(x)
+        # x = self.fc4(x)
         
         return x
 
@@ -151,7 +152,8 @@ def main():
     
     print("Training complete!")
 
-    torch.save(model.state_dict(), 'binary_model_small.pth')
+    torch.save(model.state_dict(), 'binary_model_ultra_small.pth')
+    # torch.save(model.state_dict(), 'binary_model_small.pth')
     # torch.save(model.state_dict(), 'binary_model.pth')
 
 

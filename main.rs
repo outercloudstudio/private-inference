@@ -1,3 +1,4 @@
+use tfhe::boolean::prelude::{BinaryBooleanGates, ServerKey};
 use tfhe::prelude::*;
 use tfhe::{ConfigBuilder, FheBool, FheInt8, FheUint8, generate_keys, set_server_key};
 
@@ -23,13 +24,25 @@ struct Model {
     fc4: LinearLayer,
 }
 
-fn binary_node(inputs: &Vec<FheInt8>, weights: &Vec<FheInt8>) -> FheInt8 {
-    let mut accumulator = &inputs[0] * &weights[0];
+fn binary_node(
+    inputs: &Vec<FheBool>,
+    weights: &Vec<bool>,
+    encrypted_one: &FheInt8,
+    encrypted_zero: &FheInt8,
+    encrypted_neg: &FheInt8,
+) -> FheInt8 {
+    let mut accumulator = encrypted_zero.clone();
 
     for i in 1..inputs.len() {
-        let product = &inputs[i] * &weights[i];
+        let xnor = if weights[i] {
+            inputs[i].clone()
+        } else {
+            !&inputs[i]
+        };
 
-        accumulator = accumulator + product;
+        let contribution = xnor.select(&encrypted_one.clone(), &encrypted_neg.clone());
+
+        accumulator = accumulator + contribution;
     }
 
     return accumulator;
@@ -50,39 +63,40 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (client_key, server_keys) = generate_keys(config);
 
-    let clear_a = 1i8;
-    let clear_b = -1i8;
-    let clear_zero = 0i8;
-
-    let encrypted_a = FheInt8::try_encrypt(clear_a, &client_key)?;
-    let encrypted_b = FheInt8::try_encrypt(clear_b, &client_key)?;
-    let encrypted_zero = FheInt8::try_encrypt(clear_zero, &client_key)?;
+    let encrypted_zero = FheInt8::try_encrypt(-1i8, &client_key)?;
+    let encrypted_one = FheInt8::try_encrypt(1i8, &client_key)?;
+    let encrypted_neg = FheInt8::try_encrypt(-1i8, &client_key)?;
 
     // On the server side:
     set_server_key(server_keys);
 
-    let mut inputs: Vec<FheInt8> = Vec::new();
+    let mut inputs: Vec<FheBool> = Vec::new();
 
-    for i in 0..196 {
-        let encrypted_input = FheInt8::try_encrypt(0i8, &client_key)?;
+    for i in 0..49 {
+        let encrypted_input = FheBool::try_encrypt(true, &client_key)?;
 
         inputs.push(encrypted_input);
     }
 
-    let mut weights: Vec<FheInt8> = Vec::new();
+    let mut weights: Vec<bool> = Vec::new();
 
-    for i in 0..196 {
-        let encrypted_weight = FheInt8::try_encrypt(model.fc1.weight[0][i], &client_key)?;
-
-        weights.push(encrypted_weight);
+    for i in 0..49 {
+        weights.push(model.fc1.weight[0][i] == 1);
     }
 
-    // let encrypted_res_mul = &encrypted_a * &encrypted_b;
+    println!("binary_node!");
 
-    // let clear_res: i8 = encrypted_res_mul.decrypt(&client_key);
-    // assert_eq!(clear_res, -1_i8);
+    let result = binary_node(
+        &inputs,
+        &weights,
+        &encrypted_one,
+        &encrypted_zero,
+        &encrypted_neg,
+    );
 
-    // println!("{}", clear_res);
+    let clear_res: i8 = result.decrypt(&client_key);
+
+    println!("{}", clear_res);
 
     Ok(())
 }
