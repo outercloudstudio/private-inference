@@ -7,73 +7,97 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
+from torchvision import datasets, transforms
 from tqdm import tqdm
 import argparse
 import numpy as np
 
-from layers import BinaryLinear, Activation, binarize
+from layers import BinaryLinear, Activation, BinaryActivation
 
-class SimpleDataset(Dataset):
+
+def get_loaders(batch_size=128, data_dir='./data'):
     """
-    Dataset that generates binary vectors of -1 and 1, with labels indicating
-    whether the count of 1s is even (0) or odd (1).
-    """
-    def __init__(self, size=10000):
-        """
-        Args:
-            size: Number of samples in the dataset
-            vector_length: Length of each binary vector
-        """
-        self.size = size
-        
-        self.data = torch.randint(0, 2, (size, 1)).float() * 2 - 1  # Convert to -1, 1
-        
-        self.labels = self.data
-    
-    def __len__(self):
-        return self.size
-    
-    def __getitem__(self, idx):
-        return self.data[idx], self.labels[idx]
-    
-def get_loaders(batch_size=16, train_size=16, val_size=16):
-    """
-    Create train, validation, and test data loaders for the parity task.
+    Create train and validation data loaders for MNIST.
     
     Args:
         batch_size: Batch size for data loaders
-        train_size: Number of training samples
-        val_size: Number of validation samples
-        test_size: Number of test samples
-        vector_length: Length of binary vectors
+        data_dir: Directory to download/load MNIST data
     
     Returns:
-        train_loader, val_loader, test_loader
+        train_loader, val_loader
     """
-    train_dataset = SimpleDataset(size=train_size)
-    val_dataset = SimpleDataset(size=val_size)
+    # Transform to normalize MNIST images
+    # MNIST images are 28x28 grayscale, we'll flatten them to 784-dim vectors
+    # and normalize to [-1, 1] range to match your binary network expectations
+    transform = transforms.Compose([
+        transforms.ToTensor(),
+        transforms.Normalize((0.5,), (0.5,)),  # Normalize to [-1, 1]
+        transforms.Lambda(lambda x: x.view(-1))  # Flatten 28x28 -> 784
+    ])
     
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    # Download and load training data
+    train_dataset = datasets.MNIST(
+        root=data_dir,
+        train=True,
+        download=True,
+        transform=transform
+    )
+    
+    # Download and load test data (used as validation)
+    val_dataset = datasets.MNIST(
+        root=data_dir,
+        train=False,
+        download=True,
+        transform=transform
+    )
+    
+    train_loader = DataLoader(
+        train_dataset, 
+        batch_size=batch_size, 
+        shuffle=True
+    )
+    
+    val_loader = DataLoader(
+        val_dataset, 
+        batch_size=batch_size, 
+        shuffle=False
+    )
     
     return train_loader, val_loader
+
 
 class BinaryMLP(nn.Module):
     def __init__(self):
         super(BinaryMLP, self).__init__()
         
-        self.fc1 = BinaryLinear(1, 1)
-        # self.act1 = Activation('relu')
+        self.flatten = nn.Flatten()
         
-        # self.fc2 = BinaryLinear(1, 1)
-        # self.act2 = Activation('relu')
+        # Binary layers
+        self.fc1 = nn.Linear(784, 256)
+        self.act1 = nn.ReLU()
+        
+        self.fc2 = nn.Linear(256, 256)
+        self.act2 = nn.ReLU()
+        
+        self.fc3 = nn.Linear(256, 16)
+        self.act3 = nn.ReLU()
+        
+        # Output layer (standard layer for final classification)
+        self.fc4 = nn.Linear(16, 10)
     
     def forward(self, x):
-        x = self.fc1(x)
-        # x = self.act1(x)
+        x = self.flatten(x)
         
-        # x = self.fc2(x)
-        # x = self.act2(x)
+        x = self.fc1(x)
+        x = self.act1(x)
+        
+        x = self.fc2(x)
+        x = self.act2(x)
+        
+        x = self.fc3(x)
+        x = self.act3(x)
+        
+        x = self.fc4(x)
         
         return x
 
@@ -134,18 +158,19 @@ def validate(model, val_loader, criterion, device, epoch):
     
     return avg_loss
 
+
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    train_loader, val_loader = get_loaders(batch_size=16)
+    train_loader, val_loader = get_loaders(batch_size=256)
     
     model = BinaryMLP().to(device)
     
-    criterion = nn.MSELoss()
+    criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
 
-    epochs = 1000
+    epochs = 10
     
     print("\nStarting training...")
     for epoch in range(1, epochs + 1):
@@ -159,8 +184,8 @@ def main():
     print("Training complete!")
 
     print(model.fc1.weight)
-    print(binarize(model.fc1.weight))
     print(model.fc1.bias)
+
 
 if __name__ == "__main__":
     main()
