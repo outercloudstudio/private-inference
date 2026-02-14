@@ -35,7 +35,7 @@ class BinaryMLP(nn.Module):
         
         # self.fc4 = nn.Linear(512, 10)
 
-        self.fc1 = BinaryLinear(49, 64)
+        self.fc1 = BinaryLinear(196, 64)
         self.act1 = Activation('relu')
         
         self.fc2 = BinaryLinear(64, 64)
@@ -157,6 +157,10 @@ def main():
     # torch.save(model.state_dict(), 'binary_model.pth')
 
 
+def quantize(tensor):
+    return torch.round(torch.mul(tensor, 100))
+
+
 if __name__ == "__main__":
     # main()
 
@@ -164,13 +168,46 @@ if __name__ == "__main__":
 
     from layers import binarize
 
+    train_loader, val_loader = get_loaders(batch_size=1)
+
+    inputs, labels = next(iter(train_loader))
+    input = inputs[0]
+    label = labels[0]
+
+    print(label)
+
+    lines = ""
+    for y in range(14):
+        line = ""
+
+        for x in range(14):
+            if input[14 * y + x] > 0:
+                line += "██"
+            else:
+                line += "░░"
+        
+        line += "\n"
+        lines += line
+
+    print(lines)
+
     fc1_weight = binarize(state_dict['fc1.weight'])
+    fc2_weight = binarize(state_dict['fc2.weight'])
+    fc3_weight = state_dict['fc3.weight']
+    fc3_bias = state_dict['fc3.bias']
 
-    print(fc1_weight)
+    output = torch.matmul(fc1_weight, input)
+    output = nn.ReLU()(output)
+    output = torch.matmul(fc2_weight, output)
+    output = nn.ReLU()(output)
+    output = torch.matmul(fc3_weight, output)
+    output = output + fc3_bias
 
-    input_tensor = torch.ones(49)
+    print(torch.argmax(output))
 
-    output = torch.matmul(binarize(fc1_weight), input_tensor)
+    items = []
 
     for i, val in enumerate(output):
-        print(f"Node {i}: {val.item():.4f}")
+        items.append(val.item())
+
+    print(items)

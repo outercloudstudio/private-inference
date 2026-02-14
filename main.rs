@@ -12,8 +12,8 @@ struct BinaryLayer {
 
 #[derive(Debug, Deserialize, Serialize)]
 struct LinearLayer {
-    weight: Vec<Vec<i32>>,
-    bias: Vec<i32>,
+    weight: Vec<Vec<i16>>,
+    bias: Vec<i16>,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -49,18 +49,26 @@ fn binary_node(
     return accumulator;
 }
 
-fn binary_node_clear(inputs: &Vec<bool>, weights: &Vec<bool>) -> i8 {
-    let mut accumulator = 0;
+fn binary_node_clear(inputs: &Vec<i16>, weights: &Vec<i16>) -> i16 {
+    let mut sum = inputs[0] * weights[0];
 
-    for i in 0..inputs.len() {
-        let xnor = if weights[i] { inputs[i] } else { !&inputs[i] };
-
-        let contribution = if xnor { 1 } else { -1 };
-
-        accumulator = accumulator + contribution;
+    for i in 1..inputs.len() {
+        sum = sum + inputs[i] * weights[i];
     }
 
-    return accumulator;
+    return sum;
+
+    // let mut accumulator = 0;
+
+    // for i in 0..inputs.len() {
+    //     let xnor = if weights[i] { inputs[i] } else { !&inputs[i] };
+
+    //     let contribution = if xnor { 1 } else { -1 };
+
+    //     accumulator = accumulator + contribution;
+    // }
+
+    // return accumulator;
 }
 
 fn relu(value: FheInt8, encrypted_zero: &FheInt8) -> FheInt8 {
@@ -86,38 +94,79 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     set_server_key(server_keys);
 
     let mut inputs: Vec<FheBool> = Vec::new();
-    let mut clear_inputs: Vec<bool> = Vec::new();
+    let mut clear_inputs: Vec<i16> = vec![
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1,
+        -1, -1, -1, 1, -1, -1, 1, 1, 1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1,
+    ];
 
     for i in 0..49 {
         let encrypted_input = FheBool::try_encrypt(true, &client_key)?;
 
         inputs.push(encrypted_input);
-        clear_inputs.push(true);
     }
 
-    let mut weights: Vec<bool> = Vec::new();
+    // let mut weights: Vec<bool> = Vec::new();
 
-    for i in 0..49 {
-        weights.push(model.fc1.weight[0][i] == 1);
+    // for i in 0..49 {
+    //     weights.push(model.fc1.weight[0][i] == 1);
+    // }
+
+    // println!("binary_node!");
+
+    // let result = binary_node(
+    //     &inputs,
+    //     &weights,
+    //     &encrypted_one,
+    //     &encrypted_zero,
+    //     &encrypted_neg,
+    // );
+
+    let mut clear_layer_0: Vec<i16> = Vec::new();
+
+    for i in 0..64 {
+        let mut weights: Vec<i16> = Vec::new();
+
+        for j in 0..49 {
+            weights.push(model.fc1.weight[i][j] as i16);
+        }
+
+        clear_layer_0.push(i16::max(0, binary_node_clear(&clear_inputs, &weights)));
     }
 
-    println!("binary_node!");
+    let mut clear_layer_1: Vec<i16> = Vec::new();
 
-    let result = binary_node(
-        &inputs,
-        &weights,
-        &encrypted_one,
-        &encrypted_zero,
-        &encrypted_neg,
-    );
+    for i in 0..64 {
+        let mut weights: Vec<i16> = Vec::new();
 
-    let check = binary_node_clear(&clear_inputs, &weights);
+        for j in 0..64 {
+            weights.push(model.fc2.weight[i][j] as i16);
+        }
 
-    let clear_res: i8 = result.decrypt(&client_key);
+        clear_layer_1.push(i16::max(0, binary_node_clear(&clear_layer_0, &weights)));
+    }
 
-    println!("{:?}", weights);
-    println!("{:?}", clear_inputs);
-    println!("{} {}", clear_res, check);
+    println!("{:?}", clear_layer_1);
+
+    let mut clear_layer_2: Vec<i16> = Vec::new();
+
+    for i in 0..10 {
+        let mut sum: i16 = 0i16;
+
+        for j in 0..64 {
+            sum += model.fc3.weight[i][j] as i16 * clear_layer_1[j] as i16;
+        }
+
+        clear_layer_2.push(sum + model.fc3.bias[i]);
+    }
+
+    println!("{:?}", clear_layer_2);
+
+    // let clear_res: i8 = result.decrypt(&client_key);
+
+    // println!("{:?}", weights);
+    // println!("{:?}", clear_inputs);
+    // println!("{} {}", clear_res, check);
 
     Ok(())
 }
