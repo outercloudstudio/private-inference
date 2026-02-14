@@ -9,27 +9,26 @@ import torch.optim as optim
 from torch.utils.data import Dataset, DataLoader
 from tqdm import tqdm
 import argparse
+import numpy as np
 
-from layers import BinaryLinear, Activation
+from layers import BinaryLinear, Activation, binarize
 
-class ParityDataset(Dataset):
+class SimpleDataset(Dataset):
     """
     Dataset that generates binary vectors of -1 and 1, with labels indicating
     whether the count of 1s is even (0) or odd (1).
     """
-    def __init__(self, size=10000, vector_length=8):
+    def __init__(self, size=10000):
         """
         Args:
             size: Number of samples in the dataset
             vector_length: Length of each binary vector
         """
         self.size = size
-        self.vector_length = vector_length
         
-        self.data = torch.randint(0, 2, (size, vector_length)).float() * 2 - 1  # Convert to -1, 1
+        self.data = torch.randint(0, 2, (size, 1)).float() * 2 - 1  # Convert to -1, 1
         
-        count_ones = (self.data == 1).sum(dim=1)
-        self.labels = (count_ones % 2).long()
+        self.labels = self.data
     
     def __len__(self):
         return self.size
@@ -37,7 +36,7 @@ class ParityDataset(Dataset):
     def __getitem__(self, idx):
         return self.data[idx], self.labels[idx]
     
-def get_parity_loaders(batch_size=256, train_size=50000, val_size=10000, vector_length=8):
+def get_loaders(batch_size=16, train_size=16, val_size=16):
     """
     Create train, validation, and test data loaders for the parity task.
     
@@ -51,8 +50,8 @@ def get_parity_loaders(batch_size=256, train_size=50000, val_size=10000, vector_
     Returns:
         train_loader, val_loader, test_loader
     """
-    train_dataset = ParityDataset(size=train_size, vector_length=vector_length)
-    val_dataset = ParityDataset(size=val_size, vector_length=vector_length)
+    train_dataset = SimpleDataset(size=train_size)
+    val_dataset = SimpleDataset(size=val_size)
     
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
@@ -60,26 +59,21 @@ def get_parity_loaders(batch_size=256, train_size=50000, val_size=10000, vector_
     return train_loader, val_loader
 
 class BinaryMLP(nn.Module):
-    """
-    Binary MLP architecture for MNIST.
-    Architecture: 784 -> 2048 -> 2048 -> 2048 -> 10
-    Uses binarized weights in hidden layers.
-    """
     def __init__(self):
         super(BinaryMLP, self).__init__()
         
-        self.fc1 = BinaryLinear(8, 8)
-        self.act1 = Activation('relu')
+        self.fc1 = BinaryLinear(1, 1)
+        # self.act1 = Activation('relu')
         
-        self.fc2 = BinaryLinear(8, 2)
-        self.act2 = Activation('relu')
+        # self.fc2 = BinaryLinear(1, 1)
+        # self.act2 = Activation('relu')
     
     def forward(self, x):
         x = self.fc1(x)
-        x = self.act1(x)
+        # x = self.act1(x)
         
-        x = self.fc2(x)
-        x = self.act2(x)
+        # x = self.fc2(x)
+        # x = self.act2(x)
         
         return x
 
@@ -119,8 +113,15 @@ def validate(model, val_loader, criterion, device, epoch):
         pbar = tqdm(val_loader, desc=f'Epoch {epoch} [Val]')
         for data, target in pbar:
             data, target = data.to(device), target.to(device)
+
+            # print(data)
+            # print(target)
             
             output = model(data)
+
+            # print(output)
+            # print("")
+
             loss = criterion(output, target)
             
             running_loss += loss.item()
@@ -137,24 +138,29 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    train_loader, val_loader = get_parity_loaders(batch_size=256)
+    train_loader, val_loader = get_loaders(batch_size=16)
     
     model = BinaryMLP().to(device)
     
-    criterion = nn.CrossEntropyLoss()
+    criterion = nn.MSELoss()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+    epochs = 1000
     
     print("\nStarting training...")
-    for epoch in range(1, 20 + 1):
+    for epoch in range(1, epochs + 1):
         train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch)
         val_loss = validate(model, val_loader, criterion, device, epoch)
 
-        print(f"Epoch {epoch}/{20} - "
+        print(f"Epoch {epoch}/{epochs} - "
               f"Train Loss: {train_loss:.4f} - "
               f"Val Loss: {val_loss:.4f}")
     
     print("Training complete!")
 
+    print(model.fc1.weight)
+    print(binarize(model.fc1.weight))
+    print(model.fc1.bias)
 
 if __name__ == "__main__":
     main()
