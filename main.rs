@@ -95,9 +95,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut inputs: Vec<FheBool> = Vec::new();
     let mut clear_inputs: Vec<i16> = vec![
-        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1,
-        -1, -1, -1, 1, -1, -1, 1, 1, 1, 1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1,
-        -1, -1,
+        -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1,
+        -1, 1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, 1, -1, -1, -1, -1, -1, -1, -1,
+        -1, -1, -1,
     ];
 
     for i in 0..49 {
@@ -122,6 +122,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     //     &encrypted_neg,
     // );
 
+    println!("{:?}", clear_inputs);
+
     let mut clear_layer_0: Vec<i16> = Vec::new();
 
     for i in 0..64 {
@@ -133,6 +135,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
         clear_layer_0.push(i16::max(0, binary_node_clear(&clear_inputs, &weights)));
     }
+
+    println!("{:?}", clear_layer_0);
 
     let mut clear_layer_1: Vec<i16> = Vec::new();
 
@@ -161,6 +165,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 
     println!("{:?}", clear_layer_2);
+
+    let mut max_index = 0;
+
+    for i in 1..10 {
+        if clear_layer_2[i] > clear_layer_2[max_index] {
+            max_index = i;
+        }
+    }
+
+    println!("{}", max_index);
 
     // let clear_res: i8 = result.decrypt(&client_key);
 

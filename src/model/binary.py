@@ -35,7 +35,8 @@ class BinaryMLP(nn.Module):
         
         # self.fc4 = nn.Linear(512, 10)
 
-        self.fc1 = BinaryLinear(196, 64)
+        # self.fc1 = BinaryLinear(196, 64)
+        self.fc1 = BinaryLinear(49, 64)
         self.act1 = Activation('relu')
         
         self.fc2 = BinaryLinear(64, 64)
@@ -157,13 +158,7 @@ def main():
     # torch.save(model.state_dict(), 'binary_model.pth')
 
 
-def quantize(tensor):
-    return torch.round(torch.mul(tensor, 100))
-
-
-if __name__ == "__main__":
-    # main()
-
+def debug():
     state_dict = torch.load('binary_model_ultra_small.pth', map_location='cpu')
 
     from layers import binarize
@@ -175,13 +170,14 @@ if __name__ == "__main__":
     label = labels[0]
 
     print(label)
+    print(input)
 
     lines = ""
-    for y in range(14):
+    for y in range(7):
         line = ""
 
-        for x in range(14):
-            if input[14 * y + x] > 0:
+        for x in range(7):
+            if input[7 * y + x] > 0:
                 line += "██"
             else:
                 line += "░░"
@@ -211,3 +207,8 @@ if __name__ == "__main__":
         items.append(val.item())
 
     print(items)
+
+if __name__ == "__main__":
+    # main()
+    debug()
+    

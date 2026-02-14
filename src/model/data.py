@@ -17,8 +17,9 @@ def get_loaders(batch_size=128, data_dir='./data'):
     # and normalize to [-1, 1] range to match your binary network expectations
     transform = transforms.Compose([
         transforms.ToTensor(),
-        transforms.Resize((14, 14)),
+        transforms.Resize((7, 7)),
         transforms.Lambda(lambda x: (x > 0.2).float()),
+        transforms.Lambda(lambda x: x * 2 - 1),
         transforms.Lambda(lambda x: x.view(-1))
     ])
     
