@@ -30,7 +30,7 @@ class PolynomialActivation(nn.Module):
         super().__init__()
         
     def forward(self, x):
-        return torch.div(torch.pow(x, 2), 50 * 50)
+        return torch.pow(x, 2)
 
 class QuantizedLinear(nn.Module):
     """Linear layer with integer weights and biases"""
