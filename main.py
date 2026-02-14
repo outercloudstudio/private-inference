@@ -18,10 +18,10 @@ def func(a: Secret[I64], b: Secret[I64], c: Secret[I64], d: Secret[I64]):
 
 func.setup()
 
-enc_a = func.encrypt_a(1)
-enc_b = func.encrypt_b(-1)
-enc_c = func.encrypt_c(-1)
-enc_d = func.encrypt_d(1)
+enc_a = func.encrypt_a(0)
+enc_b = func.encrypt_b(0)
+enc_c = func.encrypt_c(2)
+enc_d = func.encrypt_d(0)
 
 print("evaling...")
 
@@ -32,6 +32,6 @@ print("decrypting...")
 result = func.decrypt_result(result_enc)
 
 print(
-  f"Expected result for `func`: {func.original(1,-1, -1, 1)}, FHE result:"
+  f"Expected result for `func`: {func.original(0, 0, 2, 0)}, FHE result:"
   f" {result}"
 )
