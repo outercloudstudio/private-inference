@@ -7,7 +7,7 @@ with open('balancing_weights.json', 'r') as f:
 input_names = ["a", "b", "c", "d"]
 
 for i in range(4):
-    line =  f"l_0_{i} = 0"
+    line =  f"l_0_{i} = 0.0"
 
     for j in range(4):
         weight = round(model_params['fc1']['weights'][i][j] * 100) / 100
@@ -18,7 +18,7 @@ for i in range(4):
             operation = "-"
             weight = -weight
 
-        line += " " + operation + " " + input_names[j] + " * " + str(weight) + " * 10 "
+        line += " " + operation + " " + input_names[j] + " * " + str(weight)
 
     bias_operation = "+"
 
@@ -35,7 +35,7 @@ for i in range(4):
     print(f"l_0_{i} = l_0_{i} * l_0_{i}")
 
 for i in range(2):
-    line =  f"l_1_{i} = 0"
+    line =  f"l_1_{i} = 0.0"
 
     for j in range(4):
         weight = round(model_params['fc2']['weights'][i][j] * 100) / 100
