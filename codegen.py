@@ -32,6 +32,8 @@ for i in range(4):
 
     print(line)
 
+    print(f"l_0_{i} = l_0_{i} * l_0_{i} / (50 * 50)")
+
 for i in range(2):
     line =  f"l_1_{i} = 0"
 

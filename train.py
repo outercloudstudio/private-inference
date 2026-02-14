@@ -4,6 +4,21 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
 import json
 
+class LinearScale(nn.Module):
+    """Swish-like polynomial approximation activation function
+    
+    Approximates a smooth activation similar to Swish/SiLU
+    Formula: x * sigmoid_approx(x) where sigmoid is approximated by polynomial
+    For FHE compatibility: uses low-degree polynomials
+    """
+    def __init__(self, scale):
+        super().__init__()
+
+        self.scale = scale
+        
+    def forward(self, x):
+        return torch.mul(x, self.scale)
+
 class PolynomialActivation(nn.Module):
     """Swish-like polynomial approximation activation function
     
@@ -15,37 +30,29 @@ class PolynomialActivation(nn.Module):
         super().__init__()
         
     def forward(self, x):
-        return torch.pow(x, 3)
-    
-class ScaleLinear(nn.Module):
-    """Linear layer with integer weights and biases"""
-    def __init__(self, scale=1.0):
-        super().__init__()
-
-        self.scale = scale
-        
-    def forward(self, x):
-        return torch.mul(x, self.scale)
+        return torch.div(torch.pow(x, 2), 50 * 50)
 
 class QuantizedLinear(nn.Module):
     """Linear layer with integer weights and biases"""
-    def __init__(self, in_features, out_features, scale=1.0):
+    def __init__(self, in_features, out_features):
         super().__init__()
         self.weight_float = nn.Parameter(torch.randn(out_features, in_features))
         self.bias_float = nn.Parameter(torch.randn(out_features))
-        self.scale = scale
         self.quantized = False
         
     def forward(self, x):
         if self.quantized:
             return torch.matmul(torch.round(x), self.weight_int.t().float()) + self.bias_int.float()
         else:
-            return torch.matmul(x, self.weight_float.t()) + self.bias_float
+            weight_clamped = torch.clamp(self.weight_float, -50, 50)
+            bias_clamped = torch.clamp(self.bias_float, -50, 50)
+
+            return torch.matmul(x, weight_clamped.t()) + bias_clamped
     
     def quantize(self):
         """Convert float weights to integers"""
-        self.weight_int = torch.round(self.weight_float * self.scale).to(torch.int32)
-        self.bias_int = torch.round(self.bias_float * self.scale).to(torch.int32)
+        self.weight_int = torch.round(self.weight_float).to(torch.int32)
+        self.bias_int = torch.round(self.bias_float).to(torch.int32)
         self.quantized = True
 
         self.weight_float.requires_grad = False
@@ -55,10 +62,10 @@ class BalancingMLP(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.scale = ScaleLinear(scale=10.0)
-        self.fc1 = QuantizedLinear(4, 4, scale=10.0)
+        self.scale = LinearScale(10)
+        self.fc1 = QuantizedLinear(4, 4)
         self.activation = PolynomialActivation()
-        self.fc2 = QuantizedLinear(4, 2, scale=10.0)
+        self.fc2 = QuantizedLinear(4, 2)
         
     def forward(self, x):
         x = self.scale(x)
