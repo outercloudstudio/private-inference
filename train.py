@@ -28,7 +28,7 @@ class QuantizedLinear(nn.Module):
         
     def forward(self, x):
         if self.quantized:
-            return torch.matmul(x, self.weight_int.t().float()) + self.bias_int.float()
+            return torch.matmul(torch.round(x * self.scale), self.weight_int.t().float()) + self.bias_int.float()
         else:
             return torch.matmul(x, self.weight_float.t()) + self.bias_float
     
@@ -119,6 +119,8 @@ def train_balancing_model(model):
     
     acc = 100. * correct / total
     print(f'Test Accuracy (with integer weights): {acc:.2f}%')
+
+    print(model(torch.FloatTensor([0, 0, 0, 2])))
 
     return model
 
