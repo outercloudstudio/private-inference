@@ -1,45 +1,160 @@
-from heir import compile
-from heir.mlir import F64, Secret
+"""
+Binary Neural Network for MNIST
+MLP with binarized weights based on https://arxiv.org/abs/1602.02830
+"""
 
-@compile(
-    scheme="ckks",
-    config={
-        "logN": 14,
-        "Q": [60, 40, 40, 40, 60],
-        "P": [60, 60],
-        "logDefaultScale": 40,
-    }
-)
-def func(a: Secret[F64], b: Secret[F64], c: Secret[F64], d: Secret[F64]):
-    l_0_0 = 0.0 + a * 0.04 + b * 0.04 - c * 6.24 - d * 0.04 + 2.07
-    l_0_0 = l_0_0 * l_0_0
-    l_0_1 = 0.0 + a * 0.09 + b * 0.05 + c * 7.41 - d * 0.05 + 1.96
-    l_0_1 = l_0_1 * l_0_1
-    l_0_2 = 0.0 + a * 0.22 + b * 0.07 + c * 4.74 - d * 0.15 - 1.32
-    l_0_2 = l_0_2 * l_0_2
-    l_0_3 = 0.0 - a * 0.1 - b * 0.06 + c * 6.19 + d * 0.09 + 1.63
-    l_0_3 = l_0_3 * l_0_3
-    l_1_0 = 0.0 + l_0_0 * 2.43 - l_0_1 * 1.71 + l_0_2 * 0.64 - l_0_3 * 1.34 - 0.2
-    l_1_1 = 0.0 - l_0_0 * 1.93 + l_0_1 * 2.03 - l_0_2 * 0.94 + l_0_3 * 1.1 - 0.13
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from torch.utils.data import Dataset, DataLoader
+from tqdm import tqdm
+import argparse
 
-    return l_1_0 - l_1_1
+from layers import BinaryLinear, Activation
 
-func.setup()
+class ParityDataset(Dataset):
+    """
+    Dataset that generates binary vectors of -1 and 1, with labels indicating
+    whether the count of 1s is even (0) or odd (1).
+    """
+    def __init__(self, size=10000, vector_length=8):
+        """
+        Args:
+            size: Number of samples in the dataset
+            vector_length: Length of each binary vector
+        """
+        self.size = size
+        self.vector_length = vector_length
+        
+        self.data = torch.randint(0, 2, (size, vector_length)).float() * 2 - 1  # Convert to -1, 1
+        
+        count_ones = (self.data == 1).sum(dim=1)
+        self.labels = (count_ones % 2).long()
+    
+    def __len__(self):
+        return self.size
+    
+    def __getitem__(self, idx):
+        return self.data[idx], self.labels[idx]
+    
+def get_parity_loaders(batch_size=256, train_size=50000, val_size=10000, vector_length=8):
+    """
+    Create train, validation, and test data loaders for the parity task.
+    
+    Args:
+        batch_size: Batch size for data loaders
+        train_size: Number of training samples
+        val_size: Number of validation samples
+        test_size: Number of test samples
+        vector_length: Length of binary vectors
+    
+    Returns:
+        train_loader, val_loader, test_loader
+    """
+    train_dataset = ParityDataset(size=train_size, vector_length=vector_length)
+    val_dataset = ParityDataset(size=val_size, vector_length=vector_length)
+    
+    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False)
+    
+    return train_loader, val_loader
 
-enc_a = func.encrypt_a(0.0)
-enc_b = func.encrypt_b(0.0)
-enc_c = func.encrypt_c(2.0)
-enc_d = func.encrypt_d(0.0)
+class BinaryMLP(nn.Module):
+    """
+    Binary MLP architecture for MNIST.
+    Architecture: 784 -> 2048 -> 2048 -> 2048 -> 10
+    Uses binarized weights in hidden layers.
+    """
+    def __init__(self):
+        super(BinaryMLP, self).__init__()
+        
+        self.fc1 = BinaryLinear(8, 8)
+        self.act1 = Activation('relu')
+        
+        self.fc2 = BinaryLinear(8, 2)
+        self.act2 = Activation('relu')
+    
+    def forward(self, x):
+        x = self.fc1(x)
+        x = self.act1(x)
+        
+        x = self.fc2(x)
+        x = self.act2(x)
+        
+        return x
 
-print("evaling...")
 
-result_enc = func.eval(enc_a, enc_b, enc_c, enc_d)
+def train_epoch(model, train_loader, criterion, optimizer, device, epoch):
+    """Train for one epoch"""
+    model.train()
+    running_loss = 0.0
+    
+    pbar = tqdm(train_loader, desc=f'Epoch {epoch} [Train]')
+    for batch_idx, (data, target) in enumerate(pbar):
+        data, target = data.to(device), target.to(device)
+        
+        optimizer.zero_grad()
+        output = model(data)
+        loss = criterion(output, target)
+        loss.backward()
+        optimizer.step()
+        
+        running_loss += loss.item()
+        
+        pbar.set_postfix({
+            'loss': f'{loss.item():.4f}',
+        })
+    
+    avg_loss = running_loss / len(train_loader)
+    
+    return avg_loss
 
-print("decrypting...")
 
-result = func.decrypt_result(result_enc)
+def validate(model, val_loader, criterion, device, epoch):
+    """Validate the model"""
+    model.eval()
+    running_loss = 0.0
+    
+    with torch.no_grad():
+        pbar = tqdm(val_loader, desc=f'Epoch {epoch} [Val]')
+        for data, target in pbar:
+            data, target = data.to(device), target.to(device)
+            
+            output = model(data)
+            loss = criterion(output, target)
+            
+            running_loss += loss.item()
+            
+            pbar.set_postfix({
+                'loss': f'{loss.item():.4f}',
+            })
+    
+    avg_loss = running_loss / len(val_loader)
+    
+    return avg_loss
 
-print(
-  f"Expected result for `func`: {func.original(0.0, 0.0, 2.0, 0.0)}, FHE result:"
-  f" {result}"
-)
+def main():
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(f"Using device: {device}")
+    
+    train_loader, val_loader = get_parity_loaders(batch_size=256)
+    
+    model = BinaryMLP().to(device)
+    
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.Adam(model.parameters(), lr=0.001)
+    
+    print("\nStarting training...")
+    for epoch in range(1, 20 + 1):
+        train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch)
+        val_loss = validate(model, val_loader, criterion, device, epoch)
+
+        print(f"Epoch {epoch}/{20} - "
+              f"Train Loss: {train_loss:.4f} - "
+              f"Val Loss: {val_loss:.4f}")
+    
+    print("Training complete!")
+
+
+if __name__ == "__main__":
+    main()

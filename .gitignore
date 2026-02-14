@@ -208,3 +208,7 @@ __marimo__/
 
 .direnv/
 .venv
+
+# Added by cargo
+
+/target
