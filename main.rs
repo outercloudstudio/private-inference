@@ -33,7 +33,7 @@ fn binary_node(
 ) -> FheInt8 {
     let mut accumulator = encrypted_zero.clone();
 
-    for i in 1..inputs.len() {
+    for i in 0..inputs.len() {
         let xnor = if weights[i] {
             inputs[i].clone()
         } else {
@@ -41,6 +41,20 @@ fn binary_node(
         };
 
         let contribution = xnor.select(&encrypted_one.clone(), &encrypted_neg.clone());
+
+        accumulator = accumulator + contribution;
+    }
+
+    return accumulator;
+}
+
+fn binary_node_clear(inputs: &Vec<bool>, weights: &Vec<bool>) -> i8 {
+    let mut accumulator = 0;
+
+    for i in 0..inputs.len() {
+        let xnor = if weights[i] { inputs[i] } else { !&inputs[i] };
+
+        let contribution = if xnor { 1 } else { -1 };
 
         accumulator = accumulator + contribution;
     }
@@ -63,7 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (client_key, server_keys) = generate_keys(config);
 
-    let encrypted_zero = FheInt8::try_encrypt(-1i8, &client_key)?;
+    let encrypted_zero = FheInt8::try_encrypt(0i8, &client_key)?;
     let encrypted_one = FheInt8::try_encrypt(1i8, &client_key)?;
     let encrypted_neg = FheInt8::try_encrypt(-1i8, &client_key)?;
 
@@ -71,11 +85,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     set_server_key(server_keys);
 
     let mut inputs: Vec<FheBool> = Vec::new();
+    let mut clear_inputs: Vec<bool> = Vec::new();
 
     for i in 0..49 {
         let encrypted_input = FheBool::try_encrypt(true, &client_key)?;
 
         inputs.push(encrypted_input);
+        clear_inputs.push(true);
     }
 
     let mut weights: Vec<bool> = Vec::new();
@@ -94,9 +110,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         &encrypted_neg,
     );
 
+    let check = binary_node_clear(&clear_inputs, &weights);
+
     let clear_res: i8 = result.decrypt(&client_key);
 
-    println!("{}", clear_res);
+    println!("{:?}", weights);
+    println!("{:?}", clear_inputs);
+    println!("{} {}", clear_res, check);
 
     Ok(())
 }
