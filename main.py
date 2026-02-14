@@ -3,7 +3,8 @@ from heir.mlir import I64, Secret
 
 @compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
 def func(a: Secret[I64], b: Secret[I64], c: Secret[I64], d: Secret[I64]):
-    output = a - b - c + d + 0
+    l_0 = 96 * c 
+    l_0_a = l_0 * l_0 * l_0
 
     return output
 

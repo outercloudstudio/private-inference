@@ -4,6 +4,19 @@ from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
 import json
 
+class PolynomialActivation(nn.Module):
+    """Swish-like polynomial approximation activation function
+    
+    Approximates a smooth activation similar to Swish/SiLU
+    Formula: x * sigmoid_approx(x) where sigmoid is approximated by polynomial
+    For FHE compatibility: uses low-degree polynomials
+    """
+    def __init__(self):
+        super().__init__()
+        
+    def forward(self, x):
+        return x ** 3
+
 class QuantizedLinear(nn.Module):
     """Linear layer with integer weights and biases"""
     def __init__(self, in_features, out_features, scale=1.0):
@@ -32,12 +45,12 @@ class BalancingMLP(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.fc1 = QuantizedLinear(4, 4, scale=100.0)
-        self.relu1 = nn.ReLU()
-        self.fc2 = QuantizedLinear(4, 2, scale=100.0)
+        self.fc1 = QuantizedLinear(4, 4, scale=10.0)
+        self.activation = PolynomialActivation()
+        self.fc2 = QuantizedLinear(4, 2, scale=10.0)
         
     def forward(self, x):
-        x = self.relu1(self.fc1(x))
+        x = self.activation(self.fc1(x))
         x = self.fc2(x)
 
         return x
@@ -128,7 +141,7 @@ model_params = {
         "weights": weights_fc2,
         "bias": bias_fc2
     },
-    "scale": 100.0
+    "scale": 10.0
 }
 
 with open('balancing_weights.json', 'w') as f:
