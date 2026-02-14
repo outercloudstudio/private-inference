@@ -1,33 +1,50 @@
 import torch
 import torch.nn as nn
-import torch.quantization as quantization
 from torch.utils.data import DataLoader, TensorDataset, random_split
 import numpy as np
+import json
+
+class QuantizedLinear(nn.Module):
+    """Linear layer with integer weights and biases"""
+    def __init__(self, in_features, out_features, scale=1.0):
+        super().__init__()
+        self.weight_float = nn.Parameter(torch.randn(out_features, in_features))
+        self.bias_float = nn.Parameter(torch.randn(out_features))
+        self.scale = scale
+        self.quantized = False
+        
+    def forward(self, x):
+        if self.quantized:
+            return torch.matmul(x, self.weight_int.t().float()) + self.bias_int.float()
+        else:
+            return torch.matmul(x, self.weight_float.t()) + self.bias_float
+    
+    def quantize(self):
+        """Convert float weights to integers"""
+        self.weight_int = torch.round(self.weight_float * self.scale).to(torch.int32)
+        self.bias_int = torch.round(self.bias_float * self.scale).to(torch.int32)
+        self.quantized = True
+
+        self.weight_float.requires_grad = False
+        self.bias_float.requires_grad = False
 
 class BalancingMLP(nn.Module):
     def __init__(self):
         super().__init__()
 
-        self.quant = quantization.QuantStub()
-
-        self.fc1 = nn.Linear(4, 4)
-        
+        self.fc1 = QuantizedLinear(4, 4, scale=100.0)
         self.relu1 = nn.ReLU()
-        
-        self.fc2 = nn.Linear(4, 2)
-        
-        self.dequant = quantization.DeQuantStub()
+        self.fc2 = QuantizedLinear(4, 2, scale=100.0)
         
     def forward(self, x):
-        x = self.quant(x)
-
         x = self.relu1(self.fc1(x))
-        
         x = self.fc2(x)
-        
-        x = self.dequant(x)
-        
+
         return x
+    
+    def quantize(self):
+        self.fc1.quantize()
+        self.fc2.quantize()
 
 def create_balancing_dataset(num_samples=10000):
     positions = np.random.uniform(-2.4, 2.4, num_samples)
@@ -40,7 +57,7 @@ def create_balancing_dataset(num_samples=10000):
     
     return TensorDataset(torch.FloatTensor(X), torch.LongTensor(y))
 
-def train_balancing_model():
+def train_balancing_model(model):
     dataset = create_balancing_dataset()
     train_size = int(0.8 * len(dataset))
     train_dataset, test_dataset = random_split(dataset, [train_size, len(dataset) - train_size])
@@ -48,11 +65,7 @@ def train_balancing_model():
     train_loader = DataLoader(train_dataset, batch_size=64, shuffle=True)
     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False)
     
-    model = BalancingMLP()
-    
     model.train()
-    model.qconfig = quantization.get_default_qat_qconfig('x86')
-    quantization.prepare_qat(model, inplace=True)
     
     optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
     criterion = nn.CrossEntropyLoss()
@@ -78,25 +91,45 @@ def train_balancing_model():
         avg_loss = total_loss / len(train_loader)
         print(f'Epoch {epoch+1}/20 - Loss: {avg_loss:.4f}, Accuracy: {acc:.2f}%')
     
-    model.eval()
-    quantized_model = quantization.convert(model, inplace=False)
+    print("\nQuantizing model to integer weights...")
+    model.quantize()
     
+    model.eval()
     correct = 0
     total = 0
     with torch.no_grad():
         for inputs, labels in test_loader:
-            outputs = quantized_model(inputs)
+            outputs = model(inputs)
             _, predicted = outputs.max(1)
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
     
     acc = 100. * correct / total
-    print(f'\nTest Accuracy: {acc:.2f}%')
-    
-    return quantized_model
+    print(f'Test Accuracy (with integer weights): {acc:.2f}%')
 
-model = train_balancing_model()
+    return model
 
-torch.save(model.state_dict(), 'balancing_quantized.pth')
+model = BalancingMLP()
+trained_model = train_balancing_model(model)
 
-print("\nModel saved!")
+torch.save(trained_model.state_dict(), 'balancing.pth')
+
+weights_fc1 = model.fc1.weight_int.cpu().numpy().tolist()
+bias_fc1 = model.fc1.bias_int.cpu().numpy().tolist()
+weights_fc2 = model.fc2.weight_int.cpu().numpy().tolist()
+bias_fc2 = model.fc2.bias_int.cpu().numpy().tolist()
+
+model_params = {
+    "fc1": {
+        "weights": weights_fc1,
+        "bias": bias_fc1
+    },
+    "fc2": {
+        "weights": weights_fc2,
+        "bias": bias_fc2
+    },
+    "scale": 100.0
+}
+
+with open('balancing_weights.json', 'w') as f:
+    json.dump(model_params, f, indent=2)
