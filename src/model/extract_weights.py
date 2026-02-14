@@ -9,23 +9,23 @@ def quantize(tensor):
 
 
 if __name__ == "__main__":
-    state_dict = torch.load("binary_model.pth")
+    state_dict = torch.load("binary_model_small.pth")
 
     data = {}
 
     data["fc1"] = {
         "weight": binarize(state_dict["fc1.weight"]).tolist(),
-        "bias": torch.round(state_dict["fc1.bias"]).tolist(),
+        # "bias": torch.round(state_dict["fc1.bias"]).tolist(),
     }
 
     data["fc2"] = {
         "weight": binarize(state_dict["fc2.weight"]).tolist(),
-        "bias": torch.round(state_dict["fc2.bias"]).tolist(),
+        # "bias": torch.round(state_dict["fc2.bias"]).tolist(),
     }
 
     data["fc3"] = {
         "weight": binarize(state_dict["fc3.weight"]).tolist(),
-        "bias": torch.round(state_dict["fc3.bias"]).tolist(),
+        # "bias": torch.round(state_dict["fc3.bias"]).tolist(),
     }
 
     data["fc4"] = {
