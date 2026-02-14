@@ -1,27 +1,27 @@
 from heir import compile
-from heir.mlir import I64, Secret
+from heir.mlir import F64, Secret
 
-@compile()  # defaults to scheme="bgv", OpenFHE backend, and debug=False
-def func(a: Secret[I64], b: Secret[I64], c: Secret[I64], d: Secret[I64]):
-    l_0_0 = 0 + a * 0 * 10  + b * 0 * 10  + c * 2 * 10  + d * 0 * 10  + 3
+@compile(scheme="ckks")
+def func(a: Secret[F64], b: Secret[F64], c: Secret[F64], d: Secret[F64]):
+    l_0_0 = 0 + a * 0.04 * 10  + b * 0.04 * 10  - c * 6.24 * 10  - d * 0.04 * 10  + 2.07
     l_0_0 = l_0_0 * l_0_0
-    l_0_1 = 0 - a * 1 * 10  + b * 1 * 10  - c * 1 * 10  + d * 0 * 10  + 0       
+    l_0_1 = 0 + a * 0.09 * 10  + b * 0.05 * 10  + c * 7.41 * 10  - d * 0.05 * 10  + 1.96
     l_0_1 = l_0_1 * l_0_1
-    l_0_2 = 0 + a * 0 * 10  + b * 0 * 10  + c * 0 * 10  + d * 1 * 10  - 1       
+    l_0_2 = 0 + a * 0.22 * 10  + b * 0.07 * 10  + c * 4.74 * 10  - d * 0.15 * 10  - 1.32
     l_0_2 = l_0_2 * l_0_2
-    l_0_3 = 0 + a * 0 * 10  - b * 1 * 10  + c * 0 * 10  + d * 0 * 10  - 1       
+    l_0_3 = 0 - a * 0.1 * 10  - b * 0.06 * 10  + c * 6.19 * 10  + d * 0.09 * 10  + 1.63
     l_0_3 = l_0_3 * l_0_3
-    l_1_0 = 0 - l_0_0 * 1 + l_0_1 * 0 + l_0_2 * 0 - l_0_3 * 1 + 5
-    l_1_1 = 0 + l_0_0 * 1 + l_0_1 * 0 + l_0_2 * 0 + l_0_3 * 0 - 4
+    l_1_0 = 0 + l_0_0 * 2.43 - l_0_1 * 1.71 + l_0_2 * 0.64 - l_0_3 * 1.34 - 0.2
+    l_1_1 = 0 - l_0_0 * 1.93 + l_0_1 * 2.03 - l_0_2 * 0.94 + l_0_3 * 1.1 - 0.13
 
     return l_1_0 - l_1_1
 
 func.setup()
 
-enc_a = func.encrypt_a(0)
-enc_b = func.encrypt_b(0)
-enc_c = func.encrypt_c(2)
-enc_d = func.encrypt_d(0)
+enc_a = func.encrypt_a(0.0)
+enc_b = func.encrypt_b(0.0)
+enc_c = func.encrypt_c(2.0)
+enc_d = func.encrypt_d(0.0)
 
 print("evaling...")
 
@@ -32,6 +32,6 @@ print("decrypting...")
 result = func.decrypt_result(result_enc)
 
 print(
-  f"Expected result for `func`: {func.original(0, 0, 2, 0)}, FHE result:"
+  f"Expected result for `func`: {func.original(0.0, 0.0, 2.0, 0.0)}, FHE result:"
   f" {result}"
 )

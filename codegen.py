@@ -10,7 +10,7 @@ for i in range(4):
     line =  f"l_0_{i} = 0"
 
     for j in range(4):
-        weight = model_params['fc1']['weights'][i][j]
+        weight = round(model_params['fc1']['weights'][i][j] * 100) / 100
 
         operation = "+"
 
@@ -22,7 +22,7 @@ for i in range(4):
 
     bias_operation = "+"
 
-    bias = model_params['fc1']['bias'][i]
+    bias = round(model_params['fc1']['bias'][i] * 100) / 100
 
     if bias < 0:
         bias_operation = "-"
@@ -38,7 +38,7 @@ for i in range(2):
     line =  f"l_1_{i} = 0"
 
     for j in range(4):
-        weight = model_params['fc2']['weights'][i][j]
+        weight = round(model_params['fc2']['weights'][i][j] * 100) / 100
 
         operation = "+"
 
@@ -50,7 +50,7 @@ for i in range(2):
 
     bias_operation = "+"
 
-    bias = model_params['fc2']['bias'][i]
+    bias = round(model_params['fc2']['bias'][i] * 100) / 100
 
     if bias < 0:
         bias_operation = "-"
