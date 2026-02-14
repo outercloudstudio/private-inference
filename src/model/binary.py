@@ -8,10 +8,9 @@ import torch.nn as nn
 import torch.optim as optim
 from tqdm import tqdm
 import argparse
+from data import get_loaders
 
 from layers import BinaryLinear, Activation
-from utils import get_mnist, ModelCheckpoint, load_model, count_parameters, calculate_accuracy
-from tensorboard_logging import Logger
 
 
 class BinaryMLP(nn.Module):
@@ -55,11 +54,10 @@ class BinaryMLP(nn.Module):
         return x
 
 
-def train_epoch(model, train_loader, criterion, optimizer, device, logger, epoch):
+def train_epoch(model, train_loader, criterion, optimizer, device, epoch):
     """Train for one epoch"""
     model.train()
     running_loss = 0.0
-    running_acc = 0.0
     
     pbar = tqdm(train_loader, desc=f'Epoch {epoch} [Train]')
     for batch_idx, (data, target) in enumerate(pbar):
@@ -72,32 +70,22 @@ def train_epoch(model, train_loader, criterion, optimizer, device, logger, epoch
         optimizer.step()
         
         # Calculate metrics
-        acc = calculate_accuracy(output, target)
         running_loss += loss.item()
-        running_acc += acc
         
         # Update progress bar
         pbar.set_postfix({
-            'loss': f'{loss.item():.4f}',
-            'acc': f'{acc:.4f}'
+            'loss': f'{loss.item():.4f}'
         })
-        
-        # Log to TensorBoard
-        global_step = epoch * len(train_loader) + batch_idx
-        logger.log_scalar('batch/train_loss', loss.item(), global_step)
-        logger.log_scalar('batch/train_acc', acc, global_step)
     
     avg_loss = running_loss / len(train_loader)
-    avg_acc = running_acc / len(train_loader)
     
-    return avg_loss, avg_acc
+    return avg_loss
 
 
-def validate(model, val_loader, criterion, device, epoch, logger):
+def validate(model, val_loader, criterion, device, epoch):
     """Validate the model"""
     model.eval()
     running_loss = 0.0
-    running_acc = 0.0
     
     with torch.no_grad():
         pbar = tqdm(val_loader, desc=f'Epoch {epoch} [Val]')
@@ -107,40 +95,15 @@ def validate(model, val_loader, criterion, device, epoch, logger):
             output = model(data)
             loss = criterion(output, target)
             
-            acc = calculate_accuracy(output, target)
             running_loss += loss.item()
-            running_acc += acc
             
             pbar.set_postfix({
                 'loss': f'{loss.item():.4f}',
-                'acc': f'{acc:.4f}'
             })
     
     avg_loss = running_loss / len(val_loader)
-    avg_acc = running_acc / len(val_loader)
     
-    return avg_loss, avg_acc
-
-
-def test(model, test_loader, device):
-    """Test the model"""
-    model.eval()
-    running_acc = 0.0
-    
-    with torch.no_grad():
-        pbar = tqdm(test_loader, desc='Testing')
-        for data, target in pbar:
-            data, target = data.to(device), target.to(device)
-            
-            output = model(data)
-            acc = calculate_accuracy(output, target)
-            running_acc += acc
-            
-            pbar.set_postfix({'acc': f'{acc:.4f}'})
-    
-    avg_acc = running_acc / len(test_loader)
-    return avg_acc
-
+    return avg_loss
 
 def main():
     parser = argparse.ArgumentParser(description="Binary neural network for MNIST")
@@ -158,54 +121,28 @@ def main():
     
     # Load data
     print("Loading MNIST dataset...")
-    train_loader, val_loader, test_loader = get_mnist(batch_size=args.batch_size)
+    train_loader, val_loader = get_loaders(batch_size=args.batch_size)
     
     # Create model
     model = BinaryMLP().to(device)
-    print(f"Model parameters: {count_parameters(model):,}")
     
     # Loss and optimizer
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=args.lr)
-    
-    # Logger and checkpoint
-    logger = Logger(log_dir=args.log_dir)
-    checkpoint = ModelCheckpoint(args.checkpoint, monitor='val_acc', mode='max')
-    
-    # Log hyperparameters
-    logger.log_text('hyperparameters', str(vars(args)), 0)
-    
+
     # Training loop
     print("\nStarting training...")
     for epoch in range(1, args.epochs + 1):
-        train_loss, train_acc = train_epoch(model, train_loader, criterion, optimizer, device, logger, epoch)
-        val_loss, val_acc = validate(model, val_loader, criterion, device, epoch, logger)
-        
-        # Log epoch metrics
-        logger.log_scalars('epoch/loss', {'train': train_loss, 'val': val_loss}, epoch)
-        logger.log_scalars('epoch/accuracy', {'train': train_acc, 'val': val_acc}, epoch)
-        
+        train_loss = train_epoch(model, train_loader, criterion, optimizer, device, epoch)
+        val_loss = validate(model, val_loader, criterion, device, epoch)    
+
         print(f"Epoch {epoch}/{args.epochs} - "
-              f"Train Loss: {train_loss:.4f}, Train Acc: {train_acc:.4f} - "
-              f"Val Loss: {val_loss:.4f}, Val Acc: {val_acc:.4f}")
-        
-        # Save checkpoint
-        checkpoint(model, val_acc, epoch)
+              f"Train Loss: {train_loss:.4f} - "
+              f"Val Loss: {val_loss:.4f}")
     
-    # Load best model and test
-    print("\nLoading best model for testing...")
-    model = load_model(model, args.checkpoint, device)
-    test_acc = test(model, test_loader, device)
-    print(f"\nTest Accuracy: {test_acc:.4f}")
-    
-    # Log final metrics
-    logger.log_hyperparams(
-        {'lr': args.lr, 'batch_size': args.batch_size},
-        {'test_accuracy': test_acc}
-    )
-    
-    logger.close()
     print("Training complete!")
+
+    torch.save(model.state_dict(), 'binary_model.pth')
 
 
 if __name__ == "__main__":

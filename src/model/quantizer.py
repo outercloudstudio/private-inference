@@ -172,6 +172,9 @@ if __name__ == "__main__":
     
     # Save quantized model
     save_quantized_model(quantized_weights, scales, 'quantized_model.pth')
+
+    print(quantized_weights)
+    print(scales)
     
     # Calculate total model size reduction
     original_size = sum(w.numel() * 4 for w in original_weights.values())
