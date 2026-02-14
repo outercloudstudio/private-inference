@@ -3,9 +3,10 @@ from heir.mlir import F64, Secret
 
 @compile(
     scheme="ckks",
-    poly_modulus_degree=8192,
-    coeff_modulus=[60, 40, 40, 60],
-    scale=2**40
+    logN=14,    
+    Q=[60, 40, 40, 40, 60],
+    P=[60, 60],     
+    logDefaultScale=40,
 )
 def func(a: Secret[F64], b: Secret[F64], c: Secret[F64], d: Secret[F64]):
     l_0_0 = 0.0 + a * 0.04 + b * 0.04 - c * 6.24 - d * 0.04 + 2.07
