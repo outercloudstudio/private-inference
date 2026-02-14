@@ -24,18 +24,27 @@ class BinaryMLP(nn.Module):
         
         self.flatten = nn.Flatten()
         
-        # Binary layers
-        self.fc1 = BinaryLinear(784, 512)
+        # self.fc1 = BinaryLinear(784, 512)
+        # self.act1 = Activation('relu')
+        
+        # self.fc2 = BinaryLinear(512, 512)
+        # self.act2 = Activation('relu')
+        
+        # self.fc3 = BinaryLinear(512, 512)
+        # self.act3 = Activation('relu')
+        
+        # self.fc4 = nn.Linear(512, 10)
+
+        self.fc1 = BinaryLinear(196, 256)
         self.act1 = Activation('relu')
         
-        self.fc2 = BinaryLinear(512, 512)
+        self.fc2 = BinaryLinear(256, 256)
         self.act2 = Activation('relu')
         
-        self.fc3 = BinaryLinear(512, 512)
+        self.fc3 = BinaryLinear(256, 256)
         self.act3 = Activation('relu')
         
-        # Output layer (standard layer for final classification)
-        self.fc4 = nn.Linear(512, 10)
+        self.fc4 = nn.Linear(256, 10)
     
     def forward(self, x):
         x = self.flatten(x)
