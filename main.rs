@@ -20,8 +20,9 @@ struct LinearLayer {
 struct Model {
     fc1: BinaryLayer,
     fc2: BinaryLayer,
-    fc3: BinaryLayer,
-    fc4: LinearLayer,
+    // fc3: BinaryLayer,
+    // fc4: LinearLayer,
+    fc3: LinearLayer,
 }
 
 fn binary_node(

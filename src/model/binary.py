@@ -158,4 +158,19 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    # main()
+
+    state_dict = torch.load('binary_model_ultra_small.pth', map_location='cpu')
+
+    from layers import binarize
+
+    fc1_weight = binarize(state_dict['fc1.weight'])
+
+    print(fc1_weight)
+
+    input_tensor = torch.ones(49)
+
+    output = torch.matmul(binarize(fc1_weight), input_tensor)
+
+    for i, val in enumerate(output):
+        print(f"Node {i}: {val.item():.4f}")
