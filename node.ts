@@ -6,13 +6,19 @@ ws.onopen = async () => {
     console.log('Connected to server');
 };
 
-ws.onmessage = (event) => {
+ws.onmessage = async (event) => {
     const message = JSON.parse(event.data)
 
     console.log('Received:', message.id);
 
     if(message.id === 'calculate') {
-        calculate(message.location)
+        const result = await calculate(message.location)
+
+        await sendChunks(result, 'calculate-result', ws)
+
+        await ws.send(JSON.stringify({
+            id: 'calculate-finished',
+        }))
     }
 };
 
@@ -41,7 +47,7 @@ async function calculate(location: { node: number, layer: number }) {
 
     const result = await Deno.readFile(`./keys/layer_${location.layer}_${location.node}.bin`)
 
-    // await sendChunks(result, 'result', ws)
-
     console.log('Calculated!', location)
+
+    return result
 }

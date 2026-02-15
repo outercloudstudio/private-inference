@@ -23,6 +23,8 @@ ws.onopen = async () => {
     const encryptedInputs = await Deno.readFile('./keys/encrypted_inputs.bin')
 
     await sendChunks(encryptedInputs, 'encrypted-inputs', ws)
+
+    await ws.send(JSON.stringify({ id: 'inference' }))
 };
 
 ws.onmessage = (event) => {
