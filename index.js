@@ -8,6 +8,7 @@ console.log('WebSocket server is running on ws://localhost:8080');
 
 let layer = 0
 let node = 0
+let nodesLeft = 0
 
 wss.on('connection', (ws) => {
   console.log('New client connected');
@@ -20,6 +21,7 @@ wss.on('connection', (ws) => {
     if(data.id === 'inference') {
         layer = 0
         node = 0
+        nodesLeft = 32
 
         for(const client of wss.clients) {
             if(client === ws) continue
@@ -39,9 +41,11 @@ wss.on('connection', (ws) => {
             node++
         }
     } else if(data.id === 'calculate-finished') {
-        if(node < 32) {
-            console.log(layer, node)
+        nodesLeft--
 
+        console.log(nodesLeft)
+
+        if(layer === 0 && node < 32) {
             ws.send(JSON.stringify({
                 id: 'calculate',
                 location: {
@@ -51,6 +55,82 @@ wss.on('connection', (ws) => {
             }))
 
             node++
+        } else if(layer === 1 && node < 32) {
+            ws.send(JSON.stringify({
+                id: 'calculate',
+                location: {
+                    layer,
+                    node
+                }
+            }))
+
+            node++
+        } else if(layer === 2 && node < 10) {
+            ws.send(JSON.stringify({
+                id: 'calculate',
+                location: {
+                    layer,
+                    node
+                }
+            }))
+
+            node++
+        }
+
+        if(nodesLeft === 0 && layer === 0) {
+            node = 0
+            layer = 1
+            nodesLeft = 32
+
+            for(const client of wss.clients) {
+                if(client === ws) continue
+
+                if (client.readyState !== WebSocket.OPEN) continue
+
+                console.log(layer, node)
+        
+                client.send(JSON.stringify({
+                    id: 'calculate',
+                    location: {
+                        layer,
+                        node
+                    }
+                }));
+
+                node++
+            }
+        } else if(nodesLeft === 0 && layer === 1) {
+            node = 0
+            layer = 2
+            nodesLeft = 10
+
+            for(const client of wss.clients) {
+                if(client === ws) continue
+
+                if (client.readyState !== WebSocket.OPEN) continue
+
+                console.log(layer, node)
+        
+                client.send(JSON.stringify({
+                    id: 'calculate',
+                    location: {
+                        layer,
+                        node
+                    }
+                }));
+
+                node++
+            }
+        } else if(nodesLeft === 0 && layer === 2) {
+            for(const client of wss.clients) {
+                if(client === ws) continue
+
+                if (client.readyState !== WebSocket.OPEN) continue
+
+                client.send(JSON.stringify({
+                    id: 'inference-complete',
+                }));
+            }
         }
     } else if(data.id === 'server-key') {
         for(const client of wss.clients) {
@@ -69,6 +149,14 @@ wss.on('connection', (ws) => {
             client.send(JSON.stringify(data));
         }
     } else if(data.id === 'encrypted-inputs') {
+        for(const client of wss.clients) {
+            if(client === ws) continue
+
+            if (client.readyState !== WebSocket.OPEN) continue
+    
+            client.send(JSON.stringify(data));
+        }
+    } else if(data.id === 'calculate-result') {
         for(const client of wss.clients) {
             if(client === ws) continue
 

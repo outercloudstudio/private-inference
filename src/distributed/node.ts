@@ -1,13 +1,15 @@
 import { sendChunks } from "../../src/distributed/utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
-// const ws = new WebSocket('ws://localhost:8080');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
 
 ws.onopen = async () => {
     console.log('Connected to server');
 };
 
 let downloadBuffer = undefined
+
+let resultBuffers: Record<string, Uint8Array> = {}
 
 ws.onmessage = async (event) => {
     const message = JSON.parse(event.data)
@@ -17,11 +19,12 @@ ws.onmessage = async (event) => {
     if(message.id === 'calculate') {
         const result = await calculate(message.location)
 
-        await sendChunks(result, 'calculate-result', ws)
+        await sendChunks(result, 'calculate-result', ws, {
+            location: message.location,
+        })
 
         await ws.send(JSON.stringify({
             id: 'calculate-finished',
-            location: message.location
         }))
     } else if(message.id === 'server-key') {
         console.log(message.index, message.total)
@@ -65,6 +68,26 @@ ws.onmessage = async (event) => {
         downloadBuffer = mergedBuffer
 
         if(message.index === message.total - 1) Deno.writeFileSync('./keys/encrypted_inputs.bin', downloadBuffer)
+    } else if(message.id === 'calculate-result') {
+        console.log(message.index, message.total, message.instance, message.location)
+
+        const key = `${message.location.layer}_${message.location.node}`
+
+        if(message.index === 0) resultBuffers[key] = new Uint8Array()
+
+        const chunk = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+
+        const mergedBuffer = new Uint8Array(resultBuffers[key].length + chunk.length);
+        mergedBuffer.set(resultBuffers[key]!)
+        mergedBuffer.set(chunk, resultBuffers[key].length)
+
+        resultBuffers[key] = mergedBuffer
+
+        if(message.index === message.total - 1) {
+            Deno.writeFileSync(`./keys/layer_${message.location.layer}_${message.location.node}.bin`, mergedBuffer)
+
+            delete resultBuffers[key]
+        }
     }
 };
 

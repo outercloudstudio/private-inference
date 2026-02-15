@@ -1,7 +1,9 @@
 import { sendChunks } from "./utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
-// const ws = new WebSocket('ws://localhost:8080');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
+
+let resultBuffers: Record<string, Uint8Array> = {}
 
 ws.onopen = async () => {
     console.log('Connected to server');
@@ -24,7 +26,31 @@ ws.onopen = async () => {
 };
 
 ws.onmessage = (event) => {
-  console.log('Received:', event.data);
+    const message = JSON.parse(event.data)
+
+    console.log('Received:', message.id);
+
+    if(message.id === 'calculate-result') {
+        console.log(message.index, message.total, message.location)
+
+        const key = `${message.location.layer}_${message.location.node}`
+
+        if(message.index === 0) resultBuffers[key] = new Uint8Array()
+
+        const chunk = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+
+        const mergedBuffer = new Uint8Array(resultBuffers[key].length + chunk.length);
+        mergedBuffer.set(resultBuffers[key]!)
+        mergedBuffer.set(chunk, resultBuffers[key].length)
+
+        resultBuffers[key] = mergedBuffer
+
+        if(message.index === message.total - 1) {
+            Deno.writeFileSync(`./keys/layer_${message.location.layer}_${message.location.node}.bin`, mergedBuffer)
+
+            delete resultBuffers[key]
+        }
+    }
 };
 
 ws.onerror = (error) => {
