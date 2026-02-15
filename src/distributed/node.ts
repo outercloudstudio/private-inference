@@ -15,18 +15,6 @@ ws.onmessage = async (event) => {
     console.log('Received:', message.id);
 
     if(message.id === 'calculate') {
-        while(!await fileExists('./keys/server_key.bin') || !await fileExists('./keys/encrypted_zero.bin') || !await fileExists('./keys/encrypted_inputs.bin')) {
-            console.log(await fileExists('./keys/server_key.bin'))
-            console.log(await fileExists('./keys/encrypted_zero.bin'))
-            console.log(await fileExists('./keys/encrypted_inputs.bin'))
-            
-            await new Promise(res => setTimeout(res, 100))
-        }
-
-        console.log(await fileExists('./keys/server_key.bin'))
-        console.log(await fileExists('./keys/encrypted_zero.bin'))
-        console.log(await fileExists('./keys/encrypted_inputs.bin'))
-
         const result = await calculate(message.location)
 
         await sendChunks(result, 'calculate-result', ws)
@@ -76,7 +64,7 @@ ws.onmessage = async (event) => {
 
         downloadBuffer = mergedBuffer
 
-        if(message.index === message.total - 1) Deno.writeFileSync('./keys/encrypted-inputs.bin', downloadBuffer)
+        if(message.index === message.total - 1) Deno.writeFileSync('./keys/encrypted_inputs.bin', downloadBuffer)
     }
 };
 
