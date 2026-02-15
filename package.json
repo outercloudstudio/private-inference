@@ -4,7 +4,8 @@
 	"description": "",
 	"main": "index.js",
 	"scripts": {
-		"start": "node ."
+		"start": "node .",
+		"setup": "npm ci"
 	},
 	"repository": {
 		"type": "git",
