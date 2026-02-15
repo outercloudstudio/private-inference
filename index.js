@@ -10,6 +10,8 @@ let layer = 0
 let node = 0
 let nodesLeft = 0
 
+let inferenceSocket = undefined
+
 wss.on('connection', (ws) => {
   console.log('New client connected');
 
@@ -19,16 +21,16 @@ wss.on('connection', (ws) => {
     console.log(`Received: ${data.id}`);
 
     if(data.id === 'inference') {
+        inferenceSocket = ws
+
         layer = 0
         node = 0
-        nodesLeft = 32
+        nodesLeft = 4
 
         for(const client of wss.clients) {
             if(client === ws) continue
 
             if (client.readyState !== WebSocket.OPEN) continue
-
-            console.log(layer, node)
     
             client.send(JSON.stringify({
                 id: 'calculate',
@@ -43,9 +45,9 @@ wss.on('connection', (ws) => {
     } else if(data.id === 'calculate-finished') {
         nodesLeft--
 
-        console.log(nodesLeft)
+        console.log(nodesLeft, layer, node)
 
-        if(layer === 0 && node < 32) {
+        if(layer === 0 && node < 4) {
             ws.send(JSON.stringify({
                 id: 'calculate',
                 location: {
@@ -55,7 +57,7 @@ wss.on('connection', (ws) => {
             }))
 
             node++
-        } else if(layer === 1 && node < 32) {
+        } else if(layer === 1 && node < 4) {
             ws.send(JSON.stringify({
                 id: 'calculate',
                 location: {
@@ -80,14 +82,14 @@ wss.on('connection', (ws) => {
         if(nodesLeft === 0 && layer === 0) {
             node = 0
             layer = 1
-            nodesLeft = 32
+            nodesLeft = 4
+
+            console.log('Beginning layer 1!')
 
             for(const client of wss.clients) {
-                if(client === ws) continue
+                if(client === inferenceSocket) continue
 
                 if (client.readyState !== WebSocket.OPEN) continue
-
-                console.log(layer, node)
         
                 client.send(JSON.stringify({
                     id: 'calculate',
@@ -104,12 +106,12 @@ wss.on('connection', (ws) => {
             layer = 2
             nodesLeft = 10
 
+            console.log('Beginning layer 2!')
+
             for(const client of wss.clients) {
-                if(client === ws) continue
-
+                if(client === inferenceSocket) continue
+                
                 if (client.readyState !== WebSocket.OPEN) continue
-
-                console.log(layer, node)
         
                 client.send(JSON.stringify({
                     id: 'calculate',
@@ -123,8 +125,8 @@ wss.on('connection', (ws) => {
             }
         } else if(nodesLeft === 0 && layer === 2) {
             for(const client of wss.clients) {
-                if(client === ws) continue
-
+                if(client === inferenceSocket) continue
+                
                 if (client.readyState !== WebSocket.OPEN) continue
 
                 client.send(JSON.stringify({
