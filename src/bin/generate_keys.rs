@@ -1,11 +1,8 @@
-use base64::Engine;
-use base64::engine::general_purpose;
-use serde::{Deserialize, Serialize};
 use serde_json::{self, from_str};
 use std::{env, fs};
-use tfhe::boolean::prelude::{BinaryBooleanGates, ServerKey};
 use tfhe::prelude::*;
-use tfhe::{ConfigBuilder, FheBool, FheInt8, FheInt16, generate_keys, set_server_key};
+use tfhe::safe_serialization::safe_serialize;
+use tfhe::{ConfigBuilder, FheInt16, generate_keys};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
@@ -16,25 +13,41 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let (client_key, server_key) = generate_keys(config);
 
-    let mut encrypted_inputs: Vec<FheInt16> = Vec::new();
-
     println!("{:?}", clear_inputs);
 
-    for (i, &value) in clear_inputs.iter().enumerate() {
-        let encrypted = FheInt16::try_encrypt(value, &client_key)?;
-        encrypted_inputs.push(encrypted);
+    let mut serialized_encrypted_inputs = Vec::new();
 
-        println!("Encrypted {}/{}", i + 1, clear_inputs.len());
+    bincode::serialize_into(
+        &mut serialized_encrypted_inputs,
+        &(clear_inputs.len() as i16),
+    )?;
+
+    for (_, &value) in clear_inputs.iter().enumerate() {
+        let encrypted = FheInt16::try_encrypt(value, &client_key)?;
+
+        bincode::serialize_into(&mut serialized_encrypted_inputs, &encrypted)?;
     }
 
-    let serialized_inputs = serde_json::to_vec(&encrypted_inputs)?;
-    fs::write("./keys/encrypted_inputs.bin", &serialized_inputs)?;
+    fs::write(
+        format!("./keys/encrypted_inputs.bin"),
+        &serialized_encrypted_inputs,
+    )?;
 
-    let serialized_server_key = serde_json::to_vec(&server_key)?;
-    fs::write("./keys/server_key.bin", &serialized_server_key)?;
+    let encrypted_zero = FheInt16::try_encrypt(0i8, &client_key)?;
+    let mut serialized_encrypted_zero = Vec::new();
+    bincode::serialize_into(&mut serialized_encrypted_zero, &encrypted_zero)?;
+    fs::write(
+        format!("./keys/encrypted_zero.bin"),
+        &serialized_encrypted_zero,
+    )?;
 
-    let serialized_client_key = serde_json::to_vec(&client_key)?;
-    fs::write("./keys/client_key.bin", &serialized_client_key)?;
+    let mut server_key_buffer = vec![];
+    safe_serialize(&server_key, &mut server_key_buffer, 1 << 30).unwrap();
+    fs::write("./keys/server_key.bin", &server_key_buffer)?;
+
+    let mut client_key_buffer = vec![];
+    safe_serialize(&client_key, &mut client_key_buffer, 1 << 30).unwrap();
+    fs::write("./keys/client_key.bin", &client_key_buffer)?;
 
     println!("Keys saved!");
 

@@ -663,6 +663,7 @@ name = "private-inference"
 version = "0.1.0"
 dependencies = [
  "base64",
+ "bincode",
  "futures-util",
  "rayon",
  "serde",

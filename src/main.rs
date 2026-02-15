@@ -127,8 +127,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (client_key, server_keys) = generate_keys(config);
 
     let encrypted_zero = FheInt16::try_encrypt(0i8, &client_key)?;
-    let encrypted_one = FheInt16::try_encrypt(1i8, &client_key)?;
-    let encrypted_neg = FheInt16::try_encrypt(-1i8, &client_key)?;
 
     // On the server side:
     set_server_key(server_keys);

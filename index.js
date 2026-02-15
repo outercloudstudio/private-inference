@@ -9,12 +9,24 @@ console.log('WebSocket server is running on ws://localhost:8080');
 wss.on('connection', (ws) => {
   console.log('New client connected');
 
-  ws.send('Welcome to the WebSocket server!');
-
   ws.on('message', (message) => {
     const data = JSON.parse(message)
 
     console.log(`Received: ${data.id}`);
+
+    if(data.id === 'inference') {
+        for(const client of wss.clients) {
+            if (client.readyState !== WebSocket.OPEN) continue
+    
+            client.send(JSON.stringify({
+                id: 'calculate',
+                location: {
+                    layer: 0,
+                    node: 0
+                }
+            }));
+        }
+    }
   });
 
   ws.on('close', () => {
