@@ -25,7 +25,7 @@ wss.on('connection', (ws) => {
 
         layer = 0
         node = 0
-        nodesLeft = 4
+        nodesLeft = 32
 
         for(const client of wss.clients) {
             if(client === ws) continue
@@ -47,7 +47,7 @@ wss.on('connection', (ws) => {
 
         console.log(nodesLeft, layer, node)
 
-        if(layer === 0 && node < 4) {
+        if(layer === 0 && node < 32) {
             ws.send(JSON.stringify({
                 id: 'calculate',
                 location: {
@@ -57,7 +57,7 @@ wss.on('connection', (ws) => {
             }))
 
             node++
-        } else if(layer === 1 && node < 4) {
+        } else if(layer === 1 && node < 32) {
             ws.send(JSON.stringify({
                 id: 'calculate',
                 location: {
@@ -82,7 +82,7 @@ wss.on('connection', (ws) => {
         if(nodesLeft === 0 && layer === 0) {
             node = 0
             layer = 1
-            nodesLeft = 4
+            nodesLeft = 32
 
             console.log('Beginning layer 1!')
 
@@ -126,7 +126,7 @@ wss.on('connection', (ws) => {
         } else if(nodesLeft === 0 && layer === 2) {
             for(const client of wss.clients) {
                 if(client === inferenceSocket) continue
-                
+
                 if (client.readyState !== WebSocket.OPEN) continue
 
                 client.send(JSON.stringify({
