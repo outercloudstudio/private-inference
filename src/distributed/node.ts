@@ -15,6 +15,14 @@ ws.onmessage = async (event) => {
     console.log('Received:', message.id);
 
     if(message.id === 'calculate') {
+        while(!await fileExists('./keys/server_key.bin') || !await fileExists('./keys/encrypted_zero.bin') || !await fileExists('./keys/encrypted_inputs.bin')) {
+            await new Promise(res => setTimeout(res, 100))
+        }
+
+        console.log(await fileExists('./keys/server_key.bin'))
+        console.log(await fileExists('./keys/encrypted_zero.bin'))
+        console.log(await fileExists('./keys/encrypted_inputs.bin'))
+
         const result = await calculate(message.location)
 
         await sendChunks(result, 'calculate-result', ws)
@@ -98,4 +106,16 @@ async function calculate(location: { node: number, layer: number }) {
     console.log('Calculated!', location)
 
     return result
+}
+
+async function fileExists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) {
+      return false;
+    }
+    throw error; // Re-throw other errors
+  }
 }
