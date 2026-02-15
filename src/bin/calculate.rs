@@ -5,6 +5,7 @@ use std::fs;
 use std::io::Cursor;
 use tfhe::prelude::*;
 use tfhe::safe_serialization::safe_deserialize_conformant;
+use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use tfhe::{ConfigBuilder, FheInt16, ServerKey, set_server_key};
 
 #[derive(Deserialize, Serialize)]
@@ -52,9 +53,7 @@ fn binary_node_clear(inputs: &Vec<i16>, weights: &Vec<i16>) -> i16 {
 }
 
 fn relu(value: FheInt16, encrypted_zero: &FheInt16) -> FheInt16 {
-    let comparison = value.ge(encrypted_zero);
-
-    return comparison.select(&value, encrypted_zero);
+    return value.max(encrypted_zero);
 }
 
 const JSON_STR: &str = include_str!("../../binary_model.json");
@@ -64,7 +63,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let location: Location = from_str(&args[1]).expect("Failed to parse JSON");
 
-    let config = ConfigBuilder::default().build();
+    let config = ConfigBuilder::default()
+        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
+        .build();
 
     let server_key: ServerKey = safe_deserialize_conformant(
         fs::read("./keys/server_key.bin").unwrap().as_slice(),
@@ -116,6 +117,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let model: Model = from_str(JSON_STR).expect("Failed to parse JSON");
 
     if location.layer == 0 {
+        println!("Executing!");
+
         let mut weights: Vec<i16> = Vec::new();
 
         for j in 0..49 {

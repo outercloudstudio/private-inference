@@ -6,11 +6,11 @@ const wss = new WebSocket.Server({ port: PORT });
 
 console.log('WebSocket server is running on ws://localhost:8080');
 
+let layer = 0
+let node = 0
+
 wss.on('connection', (ws) => {
   console.log('New client connected');
-
-  let layer = 0
-  let node = 0
 
   ws.on('message', async (message) => {
     const data = JSON.parse(message)
@@ -22,7 +22,11 @@ wss.on('connection', (ws) => {
         node = 0
 
         for(const client of wss.clients) {
+            if(client === ws) continue
+
             if (client.readyState !== WebSocket.OPEN) continue
+
+            console.log(layer, node)
     
             client.send(JSON.stringify({
                 id: 'calculate',
@@ -36,6 +40,8 @@ wss.on('connection', (ws) => {
         }
     } else if(data.id === 'calculate-finished') {
         if(node < 64) {
+            console.log(layer, node)
+
             ws.send(JSON.stringify({
                 id: 'calculate',
                 location: {

@@ -1,12 +1,13 @@
 import { sendChunks } from "./utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
 
 ws.onopen = async () => {
     console.log('Connected to server');
 //   ws.send('Hello from the client!');
 
-    generateKeys([
+    await encryptImage([
         -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1,
@@ -15,10 +16,6 @@ ws.onopen = async () => {
         -1, -1, -1, -1, -1, -1, -1,
         -1, -1, -1, -1, -1, -1, -1,
     ])
-
-    const serverKey = await Deno.readFile('./keys/server_key.bin')
-
-    await sendChunks(serverKey, 'server-key', ws)
 
     const encryptedInputs = await Deno.readFile('./keys/encrypted_inputs.bin')
 
@@ -39,9 +36,9 @@ ws.onclose = () => {
   console.log('Disconnected from server');
 };
 
-async function generateKeys(image: number[]) {
+async function encryptImage(image: number[]) {
     const command = new Deno.Command("cargo", {
-        args: ['run', '--release', '--bin', 'generate_keys', JSON.stringify(image)],
+        args: ['run', '--release', '--bin', 'encrypt_image', JSON.stringify(image)],
         stdout: "piped",
         // stderr: "null"
     });
@@ -54,5 +51,5 @@ async function generateKeys(image: number[]) {
 
     // console.log(output)
 
-    console.log('Keys generated!')
+    console.log('Image encrypted!')
 }

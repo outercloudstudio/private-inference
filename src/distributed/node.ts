@@ -1,6 +1,7 @@
-import { sendChunks } from "./utils.ts";
+import { sendChunks } from "../../src/distributed/utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
 
 ws.onopen = async () => {
     console.log('Connected to server');
@@ -35,15 +36,17 @@ async function calculate(location: { node: number, layer: number }) {
     
     const command = new Deno.Command("cargo", {
         args: ['run', '--release', '--bin', 'calculate', JSON.stringify(location)],
-        stdout: "piped",
+        // stdout: "piped",
         // stderr: "null"
     });
 
-    command.spawn()
+    const child = command.spawn()
 
-    const { stdout } = await command.output();
+    const status = await child.status;
 
-    const output = new TextDecoder().decode(stdout);
+    // const { stdout } = await command.output();
+
+    // const output = new TextDecoder().decode(stdout);
 
     const result = await Deno.readFile(`./keys/layer_${location.layer}_${location.node}.bin`)
 
