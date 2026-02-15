@@ -12,7 +12,9 @@ wss.on('connection', (ws) => {
   ws.send('Welcome to the WebSocket server!');
 
   ws.on('message', (message) => {
-    console.log(`Received: ${message}`);
+    const data = JSON.parse(message)
+
+    console.log(`Received: ${data.id}`);
   });
 
   ws.on('close', () => {

@@ -18,29 +18,12 @@ ws.onopen = async () => {
 
     const serverKey = await Deno.readFile('./keys/server_key.bin')
 
-    const totalChunks = Math.ceil(serverKey.length / CHUNK_SIZE);
+    await sendChunks(serverKey, 'server-key')
 
-    for (let i = 0; i < totalChunks; i++) {
-        const start = i * CHUNK_SIZE;
-        const end = Math.min(start + CHUNK_SIZE, serverKey.length);
-        const chunk = serverKey.slice(start, end);
-        
-        // Convert chunk to base64
-        const base64Chunk = btoa(String.fromCharCode(...new Uint8Array(chunk)));
-        
-        const message = JSON.stringify({
-            type: 'server-key-chunk',
-            index: i,
-            total: totalChunks,
-            data: base64Chunk
-        });
-        
-        ws.send(message);
-        
-        await new Promise(resolve => setTimeout(resolve, 5));
-    }
+    const encryptedInputs = await Deno.readFile('./keys/encrypted_inputs.bin')
+
+    await sendChunks(encryptedInputs, 'encrypted-inputs')
     
-    // ws.send(await Deno.readFile('./keys/encrypted_inputs.bin'))
 };
 
 ws.onmessage = (event) => {
@@ -54,6 +37,30 @@ ws.onerror = (error) => {
 ws.onclose = () => {
   console.log('Disconnected from server');
 };
+
+async function sendChunks(data: Uint8Array<ArrayBuffer>, id: string) {
+    const totalChunks = Math.ceil(data.length / CHUNK_SIZE);
+
+    for (let i = 0; i < totalChunks; i++) {
+        const start = i * CHUNK_SIZE;
+        const end = Math.min(start + CHUNK_SIZE, data.length);
+        const chunk = data.slice(start, end);
+        
+        // Convert chunk to base64
+        const base64Chunk = btoa(String.fromCharCode(...new Uint8Array(chunk)));
+        
+        const message = JSON.stringify({
+            id,
+            index: i,
+            total: totalChunks,
+            data: base64Chunk
+        });
+        
+        ws.send(message);
+        
+        await new Promise(resolve => setTimeout(resolve, 5));
+    }
+}
 
 async function generateKeys(image: number[]) {
     const command = new Deno.Command("cargo", {
