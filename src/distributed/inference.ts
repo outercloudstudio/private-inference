@@ -1,22 +1,50 @@
 import { sendChunks } from "./utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
-// const ws = new WebSocket('ws://localhost:8080');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
 
 let resultBuffers: Record<string, Uint8Array> = {}
+
+const args = Deno.args;
+let imageValues: number[] = [
+    -1, -1, -1, -1, -1, -1, -1,
+    -1, -1, -1,  1, -1, -1, -1,
+    -1, -1, -1,  1, -1, -1, -1,
+    -1, -1, -1,  1, -1, -1, -1,
+    -1, -1, -1,  1, -1, -1, -1,
+    -1, -1, -1,  1, -1, -1, -1,
+    -1, -1, -1, -1, -1, -1, -1,
+];
+
+if (args.length > 0) {
+    try {
+        imageValues = JSON.parse(args[0]);
+        console.log('Using values from command line:', imageValues);
+    } catch (error) {
+        console.error('Error parsing command line argument:', error);
+        console.log('Using default values');
+    }
+}
+
+let lines = "";
+for (let y = 0; y < 7; y++) {
+    let line = "";
+    for (let x = 0; x < 7; x++) {
+        if (imageValues[7 * y + x] > 0) {
+            line += "██";
+        } else {
+            line += "░░";
+        }
+    }
+    line += "\n";
+    lines += line;
+}
+console.log(lines);
 
 ws.onopen = async () => {
     console.log('Connected to server');
 
-    await encryptImage([
-        -1, -1, -1, -1, -1, -1, -1,
-        -1, -1, -1,  1, -1, -1, -1,
-        -1, -1, -1,  1, -1, -1, -1,
-        -1, -1, -1,  1, -1, -1, -1,
-        -1, -1, -1,  1, -1, -1, -1,
-        -1, -1, -1,  1, -1, -1, -1,
-        -1, -1, -1, -1, -1, -1, -1,
-    ])
+    await encryptImage(imageValues)
 
     const encryptedInputs = await Deno.readFile('./keys/encrypted_inputs.bin')
 
@@ -25,7 +53,7 @@ ws.onopen = async () => {
     await ws.send(JSON.stringify({ id: 'inference' }))
 };
 
-ws.onmessage = (event) => {
+ws.onmessage = async (event) => {
     const message = JSON.parse(event.data)
 
     console.log('Received:', message.id);
@@ -50,6 +78,10 @@ ws.onmessage = (event) => {
 
             delete resultBuffers[key]
         }
+    } else if(message.id === 'inference-complete') {
+        await descryptResults()
+
+        ws.close()
     }
 };
 
@@ -77,4 +109,13 @@ async function encryptImage(image: number[]) {
     // console.log(output)
 
     console.log('Image encrypted!')
+}
+
+async function descryptResults() {
+    const command = new Deno.Command("cargo", {
+        args: ['run', '--release', '--bin', 'decrypt_results'],
+    });
+
+    const child = command.spawn();
+    const status = await child.status;
 }

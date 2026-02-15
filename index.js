@@ -125,8 +125,6 @@ wss.on('connection', (ws) => {
             }
         } else if(nodesLeft === 0 && layer === 2) {
             for(const client of wss.clients) {
-                if(client === inferenceSocket) continue
-
                 if (client.readyState !== WebSocket.OPEN) continue
 
                 client.send(JSON.stringify({

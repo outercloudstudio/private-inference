@@ -1,8 +1,9 @@
 {
 	"tasks": {
-		"inference": "deno run -A --watch ./src/distributed/inference.ts",
-		"node": "deno run -A --watch ./src/distributed/node.ts",
-		"share-keys": "deno run -A --watch ./src/distributed/share-keys.ts"
+		"inference": "deno run -A ./src/distributed/inference.ts",
+		"node": "deno run -A ./src/distributed/node.ts",
+		"share-keys": "deno run -A ./src/distributed/share-keys.ts",
+		"demo": "deno run -A ./src/distributed/demo.ts"
 	},
 	"imports": {
 		"@std/assert": "jsr:@std/assert@1"
