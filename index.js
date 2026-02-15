@@ -12,7 +12,7 @@ wss.on('connection', (ws) => {
   let layer = 0
   let node = 0
 
-  ws.on('message', (message) => {
+  ws.on('message', async (message) => {
     const data = JSON.parse(message)
 
     console.log(`Received: ${data.id}`);
@@ -31,10 +31,10 @@ wss.on('connection', (ws) => {
                     node
                 }
             }));
+
+            node++
         }
     } else if(data.id === 'calculate-finished') {
-        node++
-
         if(node < 64) {
             ws.send(JSON.stringify({
                 id: 'calculate',
@@ -43,6 +43,8 @@ wss.on('connection', (ws) => {
                     node
                 }
             }))
+
+            node++
         }
     }
   });
