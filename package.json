@@ -1,0 +1,20 @@
+{
+	"name": "private-inference",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"scripts": {},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/outercloudstudio/private-inference.git"
+	},
+	"author": "Outer Cloud",
+	"license": "MIT",
+	"bugs": {
+		"url": "https://github.com/outercloudstudio/private-inference/issues"
+	},
+	"homepage": "https://github.com/outercloudstudio/private-inference#readme",
+	"dependencies": {
+		"ws": "^8.19.0"
+	}
+}
