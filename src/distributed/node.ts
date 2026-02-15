@@ -16,6 +16,10 @@ ws.onmessage = async (event) => {
 
     if(message.id === 'calculate') {
         while(!await fileExists('./keys/server_key.bin') || !await fileExists('./keys/encrypted_zero.bin') || !await fileExists('./keys/encrypted_inputs.bin')) {
+            console.log(await fileExists('./keys/server_key.bin'))
+            console.log(await fileExists('./keys/encrypted_zero.bin'))
+            console.log(await fileExists('./keys/encrypted_inputs.bin'))
+            
             await new Promise(res => setTimeout(res, 100))
         }
 
