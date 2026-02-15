@@ -63,9 +63,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let location: Location = from_str(&args[1]).expect("Failed to parse JSON");
 
-    let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let server_key: ServerKey = safe_deserialize_conformant(
         fs::read("./keys/server_key.bin").unwrap().as_slice(),

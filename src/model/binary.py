@@ -36,17 +36,17 @@ class BinaryMLP(nn.Module):
         # self.fc4 = nn.Linear(512, 10)
 
         # self.fc1 = BinaryLinear(196, 64)
-        self.fc1 = BinaryLinear(49, 64)
+        self.fc1 = BinaryLinear(49, 32)
         self.act1 = Activation('relu')
         
-        self.fc2 = BinaryLinear(64, 64)
+        self.fc2 = BinaryLinear(32, 32)
         self.act2 = Activation('relu')
         
         # self.fc3 = BinaryLinear(64, 64)
         # self.act3 = Activation('relu')
         
         # self.fc4 = nn.Linear(64, 10)
-        self.fc3 = nn.Linear(64, 10)
+        self.fc3 = nn.Linear(32, 10)
     
     def forward(self, x):
         x = self.flatten(x)
@@ -118,7 +118,7 @@ def validate(model, val_loader, criterion, device, epoch):
 
 def main():
     parser = argparse.ArgumentParser(description="Binary neural network for MNIST")
-    parser.add_argument("--epochs", type=int, default=200, help="Number of epochs")
+    parser.add_argument("--epochs", type=int, default=10, help="Number of epochs")
     parser.add_argument("--batch_size", type=int, default=256, help="Batch size")
     parser.add_argument("--lr", type=float, default=0.001, help="Learning rate")
     parser.add_argument("--device", type=str, default="cuda", help="Device (cuda/cpu)")

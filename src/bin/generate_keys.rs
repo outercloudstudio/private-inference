@@ -6,9 +6,7 @@ use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2_KS_PBS;
 use tfhe::{ConfigBuilder, FheInt16, generate_keys};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let config = ConfigBuilder::default()
-        .use_custom_parameters(PARAM_MESSAGE_2_CARRY_2_KS_PBS)
-        .build();
+    let config = ConfigBuilder::default().build();
 
     let (client_key, server_key) = generate_keys(config);
 

@@ -39,7 +39,7 @@ wss.on('connection', (ws) => {
             node++
         }
     } else if(data.id === 'calculate-finished') {
-        if(node < 64) {
+        if(node < 32) {
             console.log(layer, node)
 
             ws.send(JSON.stringify({
