@@ -1,7 +1,7 @@
 import { sendChunks } from "./utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
-// const ws = new WebSocket('ws://localhost:8080');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
 
 ws.onopen = async () => {
     console.log('Connected to server');
@@ -10,8 +10,12 @@ ws.onopen = async () => {
     await generateKeys()
 
     const serverKey = await Deno.readFile('./keys/server_key.bin')
-
+    
     await sendChunks(serverKey, 'server-key', ws)
+
+    const encryptedZero = await Deno.readFile('./keys/encrypted_zero.bin')
+
+    await sendChunks(encryptedZero, 'encrypted-zero', ws)
 
     ws.close()
 };

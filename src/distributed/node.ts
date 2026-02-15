@@ -1,11 +1,13 @@
 import { sendChunks } from "../../src/distributed/utils.ts";
 
-const ws = new WebSocket('wss://private-inference.onrender.com');
-// const ws = new WebSocket('ws://localhost:8080');
+// const ws = new WebSocket('wss://private-inference.onrender.com');
+const ws = new WebSocket('ws://localhost:8080');
 
 ws.onopen = async () => {
     console.log('Connected to server');
 };
+
+let downloadBuffer = undefined
 
 ws.onmessage = async (event) => {
     const message = JSON.parse(event.data)
@@ -19,7 +21,50 @@ ws.onmessage = async (event) => {
 
         await ws.send(JSON.stringify({
             id: 'calculate-finished',
+            location: message.location
         }))
+    } else if(message.id === 'server-key') {
+        console.log(message.index, message.total)
+
+        if(message.index === 0) downloadBuffer = new Uint8Array()
+
+        const chunk = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+
+        const mergedBuffer = new Uint8Array(downloadBuffer.length + chunk.length);
+        mergedBuffer.set(downloadBuffer!)
+        mergedBuffer.set(chunk, downloadBuffer.length)
+
+        downloadBuffer = mergedBuffer
+
+        if(message.index === message.total - 1) Deno.writeFileSync('./keys/server_key.bin', downloadBuffer)
+    } else if(message.id === 'encrypted-zero') {
+        console.log(message.index, message.total)
+
+        if(message.index === 0) downloadBuffer = new Uint8Array()
+
+        const chunk = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+
+        const mergedBuffer = new Uint8Array(downloadBuffer.length + chunk.length);
+        mergedBuffer.set(downloadBuffer!)
+        mergedBuffer.set(chunk, downloadBuffer.length)
+
+        downloadBuffer = mergedBuffer
+
+        if(message.index === message.total - 1) Deno.writeFileSync('./keys/encrypted_zero.bin', downloadBuffer)
+    } else if(message.id === 'encrypted-inputs') {
+        console.log(message.index, message.total)
+
+        if(message.index === 0) downloadBuffer = new Uint8Array()
+
+        const chunk = Uint8Array.from(atob(message.data), c => c.charCodeAt(0));
+
+        const mergedBuffer = new Uint8Array(downloadBuffer.length + chunk.length);
+        mergedBuffer.set(downloadBuffer!)
+        mergedBuffer.set(chunk, downloadBuffer.length)
+
+        downloadBuffer = mergedBuffer
+
+        if(message.index === message.total - 1) Deno.writeFileSync('./keys/encrypted-inputs.bin', downloadBuffer)
     }
 };
 

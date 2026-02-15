@@ -52,6 +52,30 @@ wss.on('connection', (ws) => {
 
             node++
         }
+    } else if(data.id === 'server-key') {
+        for(const client of wss.clients) {
+            if(client === ws) continue
+
+            if (client.readyState !== WebSocket.OPEN) continue
+    
+            client.send(JSON.stringify(data));
+        }
+    } else if(data.id === 'encrypted-zero') {
+        for(const client of wss.clients) {
+            if(client === ws) continue
+
+            if (client.readyState !== WebSocket.OPEN) continue
+    
+            client.send(JSON.stringify(data));
+        }
+    } else if(data.id === 'encrypted-inputs') {
+        for(const client of wss.clients) {
+            if(client === ws) continue
+
+            if (client.readyState !== WebSocket.OPEN) continue
+    
+            client.send(JSON.stringify(data));
+        }
     }
   });
 
